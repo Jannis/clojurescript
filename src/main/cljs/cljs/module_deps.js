@@ -64,7 +64,7 @@ let resolver = enhancedResolve.create({
         new enhancedResolve.NodeJsInputFileSystem(),
         4000
     ),
-    extensions: ['.js', '.json'],
+    extensions: ['.mjs', '.js', '.json'],
     mainFields: mainFields,
     aliasFields: target === 'nodejs' ? [] : ['browser'],
     moduleExtensions: ['.js', '.json']
