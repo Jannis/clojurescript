@@ -243,6 +243,24 @@
     (test/delete-node-modules)
     (test/delete-out-files out)))
 
+(deftest test-cljs-2592
+  (spit (io/file "package.json") "{}")
+  (let [opts {:npm-deps {:iterall "1.2.2"}}
+        out  (util/output-directory opts)]
+    (test/delete-node-modules)
+    (test/delete-out-files out)
+    (closure/maybe-install-node-deps! opts)
+    (is (true? (some (fn [module]
+                       (= module {:module-type :es6
+                                  :file (.getAbsolutePath (io/file "node_modules/iterall/index.mjs"))
+                                  :provides ["iterall"
+                                             "iterall/index.mjs"
+                                             "iterall/index"]}))
+                     (closure/index-node-modules ["iterall"] opts))))
+    (.delete (io/file "package.json"))
+    (test/delete-node-modules)
+    (test/delete-out-files out)))
+
 (deftest test-cljs-2315
   (spit (io/file "package.json") (json/json-str {:devDependencies {"@cljs-oss/module-deps" "*"}}))
   (apply sh/sh (cond->> ["npm" "install"]

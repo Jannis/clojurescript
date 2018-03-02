@@ -1679,11 +1679,13 @@
 (defn lib-rel-path [{:keys [lib-path url provides] :as ijs}]
   (if (nil? lib-path)
     (util/ns->relpath (first provides) "js")
-    (if (.endsWith lib-path ".js")
-      (util/get-name url)
-      (let [path (util/path url)
-            lib-path (util/normalize-path lib-path)]
-        (subs path (+ (inc (.lastIndexOf path lib-path)) (.length lib-path)))))))
+    (cond
+      (.endsWith lib-path ".js") (util/get-name url)
+      (.endsWith lib-path ".mjs") (util/get-name url)
+      :else (let [path (util/path url)
+                  lib-path (util/normalize-path lib-path)]
+              (subs path (+ (inc (.lastIndexOf path lib-path))
+                            (.length lib-path)))))))
 
 (defn ^String rel-output-path
   "Given a IJavaScript which points to a .js file either in memory, in a jar file,

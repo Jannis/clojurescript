@@ -124,13 +124,13 @@ function depProvides(provides, file) {
 
   result.push(
     providedModule,
-    providedModule.replace(/\.js(on)?$/, '')
+    providedModule.replace(/\.m?js(on)?$/, '')
   );
 
-  let indexReplaced = providedModule.replace(/\/index\.js(on)?$/, '');
+  let indexReplaced = providedModule.replace(/\/index\.m?js(on)?$/, '');
 
   if (
-      /\/index\.js(on)?$/.test(providedModule) &&
+      /\/index\.m?js(on)?$/.test(providedModule) &&
       result.indexOf(indexReplaced) === -1
   ) {
     result.push(indexReplaced);

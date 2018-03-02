@@ -73,7 +73,9 @@
   [path]
   (let [file (io/file path)]
     (when (.exists file)
-      (map to-url (filter #(.endsWith ^String (.getName ^File %) ".js") (file-seq (io/file path)))))))
+      (map to-url (filter #(or (.endsWith ^String (.getName ^File %) ".js")
+                               (.endsWith ^String (.getName ^File %) ".mjs"))
+                          (file-seq (io/file path)))))))
 
 (defn find-js-classpath
   "Returns a seq of URLs of all JavaScript files on the classpath."

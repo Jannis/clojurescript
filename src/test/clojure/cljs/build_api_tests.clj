@@ -573,3 +573,34 @@
       (let [content (slurp (-> opts :modules :c :output-to))]
         (testing "requires code.split.c"
           (is (test/document-write? content 'code.split.c)))))))
+
+(deftest test-cljs-2592
+  (test/delete-node-modules)
+  (spit (io/file "package.json") "{}")
+  (let [cenv (env/default-compiler-env)
+        dir (io/file "src" "test" "cljs_build" "mjs_modules_cljs_2592_test")
+        out (io/file (test/tmp-dir) "mjs_modules_cljs_2592_test")
+        opts {:main 'mjs-modules-cljs-2592-test.core
+              :output-dir (str out)
+              :output-to (str (io/file out "main.js"))
+              :optimizations :none
+              :install-deps true
+              :npm-deps {:iterall "1.2.2"}
+              :closure-warnings {:check-types :off
+                                 :non-standard-jsdoc :off}}]
+    (test/delete-out-files out)
+    (build/build (build/inputs dir) opts cenv)
+    (testing "processes index.mjs"
+      (let [index-mjs (io/file out "node_modules/iterall/index.mjs")]
+        (is (.exists index-mjs))
+        (is (contains? (:js-module-index @cenv) "iterall"))
+        (is (re-find #"goog\.provide\(\"module\$.*\$node_modules\$iterall\$index_mjs\"\)" (slurp index-mjs)))))
+    (testing "adds dependency to cljs_deps.js"
+      (let [deps-js (io/file out "cljs_deps.js")]
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/iterall\/index.mjs\"" (slurp deps-js)))))
+    (testing "adds the right module name to the core.cljs build output"
+      (let [core-js (io/file out "mjs_modules_cljs_2592_test/core.js")]
+        (is (re-find #"goog\.require\('module\$.*\$node_modules\$iterall\$index_mjs'\);" (slurp core-js)))
+        (is (re-find #"module\$.+\$node_modules\$iterall\$index_mjs\.isCollection" (slurp core-js))))))
+  (.delete (io/file "package.json"))
+  (test/delete-node-modules))
