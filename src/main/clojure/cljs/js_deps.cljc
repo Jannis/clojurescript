@@ -56,8 +56,9 @@
   [jar-path lib-path]
   (map io/resource
     (filter #(and
-               (.endsWith ^String % ".js")
-               (.startsWith ^String % lib-path))
+              (or (.endsWith ^String % ".js")
+                  (.endsWith ^String % ".mjs"))
+              (.startsWith ^String % lib-path))
       (jar-entry-names jar-path))))
 
 (defmulti to-url class)
@@ -353,20 +354,23 @@ JavaScript library containing provide/require 'declarations'."
   _must_ contain a `goog.provide` that matches [lib], or this fn will return nil
   and print a warning."
   [lib]
-  (when-let [lib-resource (some-> (name lib)
-                            (.replace \. \/)
-                            (.replace \- \_)
-                            (str ".js")
-                            io/resource)]
-    (let [{:keys [provides] :as lib-info} (library-graph-node lib-resource)]
-      (if (some #{(name lib)} provides)
-        (assoc lib-info :closure-lib true)
-        (binding [*out* *err*]
-          (println
-            (format
+  (letfn [(lib-resource-with-ext [ext]
+            (some-> (name lib)
+                    (.replace \. \/)
+                    (.replace \- \_)
+                    (str ext)
+                    io/resource))]
+    (when-let [lib-resource (or (lib-resource-with-ext ".mjs")
+                                (lib-resource-with-ext ".js"))]
+      (let [{:keys [provides] :as lib-info} (library-graph-node lib-resource)]
+        (if (some #{(name lib)} provides)
+          (assoc lib-info :closure-lib true)
+          (binding [*out* *err*]
+            (println
+             (format
               (str "WARNING: JavaScript file found on classpath for library `%s`, "
                    "but does not contain a corresponding `goog.provide` declaration: %s")
-              lib lib-resource)))))))
+              lib lib-resource))))))))
 
 (def native-node-modules
   #{"assert" "buffer_ieee754" "buffer" "child_process" "cluster" "console"

@@ -595,9 +595,11 @@
         (is (.exists index-mjs))
         (is (contains? (:js-module-index @cenv) "iterall"))
         (is (re-find #"goog\.provide\(\"module\$.*\$node_modules\$iterall\$index_mjs\"\)" (slurp index-mjs)))))
-    (testing "adds dependency to cljs_deps.js"
+    (testing "adds dependencies to cljs_deps.js"
       (let [deps-js (io/file out "cljs_deps.js")]
-        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/iterall\/index.mjs\"" (slurp deps-js)))))
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/iterall\/index.mjs\"" (slurp deps-js)))
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/graphql\/index.mjs\"" (slurp deps-js)))
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/graphql\/graphql.mjs\"" (slurp deps-js)))))
     (testing "adds the right module name to the core.cljs build output"
       (let [core-js (io/file out "mjs_modules_cljs_2592_test/core.js")]
         (is (re-find #"goog\.require\('module\$.*\$node_modules\$iterall\$index_mjs'\);" (slurp core-js)))

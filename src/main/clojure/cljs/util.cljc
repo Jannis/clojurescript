@@ -376,5 +376,6 @@
      (filter (fn [^File f]
                (let [path (.getPath f)]
                  (or (.endsWith path ".json")
+                     (.endsWith path ".mjs")
                      (.endsWith path ".js"))))
        fseq))))

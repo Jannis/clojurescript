@@ -741,7 +741,7 @@
 (defn source-for-namespace
   "Given a namespace and compilation environment return the relative path and
   uri of the corresponding source regardless of the source language extension:
-  .cljs, .cljc, .js"
+  .cljs, .cljc, .mjs, .js"
   [ns compiler-env]
   (let [ns-str  (str (comp/munge ns {}))
         path    (string/replace ns-str \. \/)
@@ -751,21 +751,24 @@
       (let [relpath (str path ".cljc")]
         (if-let [cljc-res (io/resource relpath)]
           {:relative-path relpath :uri cljc-res :ext :cljc}
-          (let [relpath (str path ".js")]
-            (if-let [js-res (io/resource relpath)]
-              {:relative-path relpath :uri js-res :ext :js}
-              (let [ijs (get-in @compiler-env [:js-dependency-index (str ns)])
-                   relpath (or (:file ijs) (:url ijs))]
-               (if-let [js-res (and relpath
-                                 ;; try to parse URL, otherwise just return local
-                                 ;; resource
-                                 (or (and (util/url? relpath) relpath)
-                                   (try (URL. relpath) (catch Throwable t))
-                                   (io/resource relpath)))]
-                 {:relative-path relpath :uri js-res :ext :js}
-                 (throw
-                   (IllegalArgumentException.
-                     (str "Namespace " ns " does not exist"))))))))))))
+          (let [relpath (str path ".mjs")]
+            (if-let [mjs-res (io/resource relpath)]
+              {:relative-path relpath :uri mjs-res :ext :mjs}
+              (let [relpath (str path ".js")]
+                (if-let [js-res (io/resource relpath)]
+                  {:relative-path relpath :uri js-res :ext :js}
+                  (let [ijs (get-in @compiler-env [:js-dependency-index (str ns)])
+                        relpath (or (:file ijs) (:url ijs))]
+                    (if-let [js-res (and relpath
+                                         ;; try to parse URL, otherwise just return local
+                                         ;; resource
+                                         (or (and (util/url? relpath) relpath)
+                                             (try (URL. relpath) (catch Throwable t))
+                                             (io/resource relpath)))]
+                      {:relative-path relpath :uri js-res :ext :js}
+                      (throw
+                       (IllegalArgumentException.
+                        (str "Namespace " ns " does not exist"))))))))))))))
 
 (defn cljs-dependencies
   "Given a list of all required namespaces, return a list of
@@ -2421,18 +2424,22 @@
                                                          (when (= candidate (string/replace path #"\\" "/"))
                                                            name))
                                                    (cond-> [main-path]
-                                                     (nil? (re-find #"\.js(on)?$" main-path))
-                                                     (into [(str main-path ".js") (str main-path "/index.js") (str main-path ".json")]))))))
+                                                     (nil? (re-find #"\.(js(on)?|mjs)$" main-path))
+                                                     (into [(str main-path ".mjs")
+                                                            (str main-path "/index.mjs")
+                                                            (str main-path ".js")
+                                                            (str main-path "/index.js")
+                                                            (str main-path ".json")]))))))
                                            pkg-jsons)]
                        {:provides (let [module-rel-name (-> (subs path (.lastIndexOf path "node_modules"))
                                                             (string/replace #"\\" "/")
                                                             (string/replace #"node_modules[\\\/]" ""))
-                                        provides (cond-> [module-rel-name (string/replace module-rel-name #"\.js(on)?$" "")]
+                                        provides (cond-> [module-rel-name (string/replace module-rel-name #"\.(js(on)?|mjs)$" "")]
                                                    (some? pkg-json-main)
                                                    (conj pkg-json-main))
-                                        index-replaced (string/replace module-rel-name #"[\\\/]index\.js(on)?$" "")]
+                                        index-replaced (string/replace module-rel-name #"[\\\/]index\.(js(on)?|mjs)$" "")]
                                     (cond-> provides
-                                      (and (boolean (re-find #"[\\\/]index\.js(on)?$" module-rel-name))
+                                      (and (boolean (re-find #"[\\\/]index\.(js(on)?|mjs)$" module-rel-name))
                                            (not (some #{index-replaced} provides)))
                                       (conj index-replaced)))}))))))
         module-fseq))))

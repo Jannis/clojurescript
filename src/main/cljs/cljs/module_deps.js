@@ -67,7 +67,7 @@ let resolver = enhancedResolve.create({
     extensions: ['.mjs', '.js', '.json'],
     mainFields: mainFields,
     aliasFields: target === 'nodejs' ? [] : ['browser'],
-    moduleExtensions: ['.js', '.json']
+    moduleExtensions: ['.mjs', '.js', '.json']
 });
 
 let md = mdeps({
@@ -124,13 +124,13 @@ function depProvides(provides, file) {
 
   result.push(
     providedModule,
-    providedModule.replace(/\.m?js(on)?$/, '')
+    providedModule.replace(/\.(js(on)?|mjs)$/, '')
   );
 
-  let indexReplaced = providedModule.replace(/\/index\.m?js(on)?$/, '');
+  let indexReplaced = providedModule.replace(/\/index\.(js(on)?|mjs)$/, '');
 
   if (
-      /\/index\.m?js(on)?$/.test(providedModule) &&
+      /\/index\.(js(on)?|mjs)$/.test(providedModule) &&
       result.indexOf(indexReplaced) === -1
   ) {
     result.push(indexReplaced);
@@ -178,9 +178,9 @@ md.on('file', function (file) {
 md.on('end', function () {
     for (let i = 0; i < pkgJsons.length; i++) {
         let pkgJson = pkgJsons[i];
-        const candidates = /\.js(on)?$/.test(pkgJson.mainEntry)
+        const candidates = /\.(js(on)?|mjs)$/.test(pkgJson.mainEntry)
             ? [pkgJson.mainEntry]
-            : [pkgJson.mainEntry, pkgJson.mainEntry + '.js', pkgJson.mainEntry + '/index.js', pkgJson.mainEntry + '.json'];
+            : [pkgJson.mainEntry, pkgJson.mainEntry + '.mjs', pkgJson.mainEntry + '.js', pkgJson.mainEntry + '/index.js', pkgJson.mainEntry + '.json'];
 
         for (let j = 0; j < candidates.length; j++) {
           const candidate = candidates[j];
