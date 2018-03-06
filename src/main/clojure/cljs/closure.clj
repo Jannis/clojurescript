@@ -1759,7 +1759,7 @@
       (str
         "goog.provide(\"" module-name "\");\n"
         (apply str (map (fn [n]
-                          (str "goog.require(\"" n "\");\n"))
+                          (str "goog.require(\"" (.getSymbol n) "\");\n"))
                         (.getRequires input)))
         (.toSource closure-compiler ast-root)))))
 
@@ -1788,7 +1788,7 @@
         inputs-by-name (into {} (map (juxt #(.getName %) identity) (vals (.getInputsById closure-compiler))))]
 
     (.process (Es6RewriteScriptsToModules. closure-compiler) extern-root js-root)
-    (.process (Es6RewriteModules. closure-compiler) extern-root js-root)
+    (.process (Es6RewriteModules. closure-compiler nil) extern-root js-root)
     (.process (ProcessCommonJSModules. closure-compiler) extern-root js-root)
 
     (map (partial add-converted-source
