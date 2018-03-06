@@ -1,5 +1,6 @@
 (ns mjs-modules-cljs-2592-test.core
-  (:require [iterall]))
+  (:require [iterall]
+            [graphql]))
 
 (enable-console-print!)
 
