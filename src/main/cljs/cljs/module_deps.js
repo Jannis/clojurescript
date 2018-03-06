@@ -59,6 +59,9 @@ let getDeps = function (src, {dynamicImport = true, parse = {sourceType: 'module
     return modules;
 };
 
+// FIXME: Even though we provide `extensions` and `moduleExtensions`,
+// enhanced resolve will return `.index.mjs` if it is used in e.g.
+// a `"module"` entry in `package.json`.
 let resolver = enhancedResolve.create({
     fileSystem: new enhancedResolve.CachedInputFileSystem(
         new enhancedResolve.NodeJsInputFileSystem(),

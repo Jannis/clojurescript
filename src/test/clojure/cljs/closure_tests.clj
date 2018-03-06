@@ -243,6 +243,30 @@
     (test/delete-node-modules)
     (test/delete-out-files out)))
 
+(deftest test-cljs-2592
+  (spit (io/file "package.json") "{}")
+  (let [opts {:npm-deps {:iterall "1.2.2"
+                         :graphql "0.13.1"}}
+        out  (util/output-directory opts)]
+    (test/delete-node-modules)
+    (test/delete-out-files out)
+    (closure/maybe-install-node-deps! opts)
+    (is (true? (some (fn [module]
+                       (and (= module {:module-type :es6
+                                       :file (.getAbsolutePath (io/file "node_modules/iterall/index.js"))
+                                       :provides ["iterall"
+                                                  "iterall/index.js"
+                                                  "iterall/index"]})
+                            (= module {:module-type :es6
+                                       :file (.getAbsolutePath (io/file "node_modules/graphql/execution/index.js"))
+                                       :provides ["graphql/execution"
+                                                  "graphql/execution/index.mjs"
+                                                  "graphql/execution/index"]})))
+                     (closure/index-node-modules ["iterall" "graphql"] opts))))
+    (.delete (io/file "package.json"))
+    (test/delete-node-modules)
+    (test/delete-out-files out)))
+
 (deftest test-cljs-2315
   (spit (io/file "package.json") (json/json-str {:devDependencies {"@cljs-oss/module-deps" "*"}}))
   (apply sh/sh (cond->> ["npm" "install"]

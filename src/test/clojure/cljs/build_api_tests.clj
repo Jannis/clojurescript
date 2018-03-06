@@ -621,3 +621,42 @@
       (test/delete-out-files out))
     (.delete (io/file "package.json"))
     (.delete pkg-tarball)))
+
+(deftest test-cljs-2592
+  (test/delete-node-modules)
+  (spit (io/file "package.json") "{}")
+  (let [cenv (env/default-compiler-env)
+        dir (io/file "src" "test" "cljs_build" "cljs_2592_test")
+        out (io/file (test/tmp-dir) "cljs_2592_test")
+        opts {:main 'cljs-2592-test.core
+              :output-dir (str out)
+              :output-to (str (io/file out "main.js"))
+              :optimizations :none
+              :install-deps true
+              :npm-deps {:iterall "1.2.2"
+                         :graphql "0.13.1"}
+              :closure-warnings {:check-types :off
+                                 :non-standard-jsdoc :off}}]
+    (test/delete-out-files out)
+    (build/build (build/inputs dir) opts cenv)
+    (testing "processes the iterall index.js"
+      (let [index-js (io/file out "node_modules/iterall/index.js")]
+        (is (.exists index-js))
+        (is (contains? (:js-module-index @cenv) "iterall"))
+        (is (re-find #"goog\.provide\(\"module\$.*\$node_modules\$iterall\$index\"\)" (slurp index-js)))))
+    (testing "processes the graphql index.js"
+      ; TODO
+      )
+    (testing "adds dependencies to cljs_deps.js"
+      (let [deps-js (io/file out "cljs_deps.js")]
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/iterall\/index.js\"" (slurp deps-js)))
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/graphql\/index.js\"" (slurp deps-js)))
+        (is (re-find #"goog\.addDependency\(\"..\/node_modules\/graphql\/execution/index.js\"" (slurp deps-js)))))
+    (testing "adds the right module names to the core.cljs build output"
+      (let [core-js (io/file out "cljs_2592_test/core.js")]
+        (is (re-find #"goog\.require\('module\$.*\$node_modules\$iterall\$index'\);" (slurp core-js)))
+        (is (re-find #"module\$.+\$node_modules\$iterall\$index\.isCollection" (slurp core-js)))
+        ; TODO: Add graphql checks here
+        )))
+  (.delete (io/file "package.json"))
+  (test/delete-node-modules))
