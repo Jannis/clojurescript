@@ -59,9 +59,31 @@ let getDeps = function (src, {dynamicImport = true, parse = {sourceType: 'module
     return modules;
 };
 
-// FIXME: Even though we provide `extensions` and `moduleExtensions`,
-// enhanced resolve will return `.index.mjs` if it is used in e.g.
-// a `"module"` entry in `package.json`.
+class ES6ModuleRejectionPlugin {
+	constructor(source, target) {
+		this.source = source;
+		this.target = target;
+	}
+
+	apply(resolver) {
+		resolver.plugin(this.source, (request, callback) => {
+				if (/\.mjs$/.test(request.path)) {
+					let jsPath = request.path.replace(/\.mjs$/, ".js");
+					let relativeJsPath = request.relativePath.replace(/\.mjs$/, ".js");
+					if (fs.existsSync(jsPath) &&
+						  fs.lstatSync(jsPath).isFile())
+					{
+						request.path = jsPath;
+						request.relativePath = relativeJsPath;
+					}
+				}
+
+				resolver.doResolve(this.target, request, null, callback);
+		  }
+		);
+	}
+}
+
 let resolver = enhancedResolve.create({
     fileSystem: new enhancedResolve.CachedInputFileSystem(
         new enhancedResolve.NodeJsInputFileSystem(),
@@ -70,7 +92,10 @@ let resolver = enhancedResolve.create({
     extensions: ['.js', '.json'],
     mainFields: mainFields,
     aliasFields: target === 'nodejs' ? [] : ['browser'],
-    moduleExtensions: ['.js', '.json']
+    moduleExtensions: ['.js', '.json'],
+    plugins: [
+      new ES6ModuleRejectionPlugin("resolved", "result"),
+    ]
 });
 
 let md = mdeps({
