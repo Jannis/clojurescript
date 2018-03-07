@@ -573,3 +573,51 @@
       (let [content (slurp (-> opts :modules :c :output-to))]
         (testing "requires code.split.c"
           (is (test/document-write? content 'code.split.c)))))))
+
+(deftest test-cljs-2622
+  (test/delete-node-modules)
+  ;; Prepare example package tarball
+  (let [test-dir (io/file "src" "test" "cljs_build" "npm_deps_tarball_test")
+        pkg-sources (io/file (io/file (.getAbsolutePath test-dir)) "example-package-sources")
+        pkg-tarball (io/file (test/tmp-dir) "example-package-0.1.0.tgz")
+        [_ _ exit-code] (test/run-command! ["npm" "pack" (str pkg-sources)]
+                                           {:pwd (io/file (test/tmp-dir))})]
+    ;; Verify that the tarball was created
+    (is (zero? exit-code) "Failed to create example package tarball")
+    (is (.exists pkg-tarball) "Example package tarball not created")
+    ;; Run the actual test
+    (spit (io/file "package.json") "{}")
+    (let [cenv (env/default-compiler-env)
+          out (io/file (test/tmp-dir) "npm_deps_tarball_test")
+          opts {:main 'npm-deps-tarball-test.core
+                :npm-deps {(str pkg-tarball) "0.1.0"}
+                :install-deps true
+                :output-dir (str out)
+                :output-to (str (io/file out "main.js"))}]
+      (test/delete-out-files out)
+      (build/build (build/inputs test-dir) opts cenv)
+      (testing "installs the example package from the tarball"
+        (let [pkg-dir (io/file out "node_modules" "example-package")]
+          (is (.exists pkg-dir))
+          (is (.exists (io/file pkg-dir "index.js")))
+          (is (.exists (io/file pkg-dir "package.json")))))
+      (testing "detects the example package as a JS module"
+        (is (contains? (:js-module-index @cenv) "example-package")))
+      (testing "rewrites the example package's index.js correctly"
+        (let [index-js (io/file out "node_modules" "example-package" "index.js")]
+          (is (re-find #"goog.provide\(\"module\$.*\$node_modules\$example_package\$index\"\)"
+                       (slurp index-js)))))
+      (testing "compiles the tests's core.js correctly"
+        (let [core-js (io/file out "npm_deps_tarball_test" "core.js")]
+          (is (re-find #"goog.require\('module\$.*\$node_modules\$example_package\$index'\)"
+                       (slurp core-js)))
+          (is (re-find #"module\$.*\$node_modules\$example_package\$index\.foo"
+                       (slurp core-js)))))
+      (testing "adds the right dependencies to cljs_deps.js"
+        (let [deps-js (io/file out "cljs_deps.js")]
+          (is (re-find #"goog\.addDependency\(\"..\/node_modules\/example-package\/index.js\""
+                       (slurp deps-js)))))
+      (test/delete-node-modules)
+      (test/delete-out-files out))
+    (.delete (io/file "package.json"))
+    (.delete pkg-tarball)))

@@ -9,7 +9,9 @@
 (ns cljs.test-util
   (:require [clojure.java.io :as io]
             [clojure.string :as string])
-  (:import [java.io File]))
+  (:import [java.lang ProcessBuilder]
+           [java.io
+            BufferedReader File IOException InputStreamReader StringWriter Writer]))
 
 (defn delete-out-files
   "Processed files are only copied/written if input has changed. In test case it
@@ -62,3 +64,47 @@
 
 (defn platform-path [path]
   (.replace path \/ (.charAt (str File/separator) 0)))
+
+(defn- alive? [proc]
+  (try (.exitValue proc) false (catch IllegalThreadStateException _ true)))
+
+(defn- pipe [^Process proc in ^Writer out]
+  ;; we really do want system-default encoding here
+  (with-open [^java.io.Reader in (-> in InputStreamReader. BufferedReader.)]
+    (loop [buf (char-array 1024)]
+      (when (alive? proc)
+        (try
+          (let [len (.read in buf)]
+            (when-not (neg? len)
+              (.write out buf 0 len)
+              (.flush out)))
+          (catch IOException e
+            (when (and (alive? proc) (not (.contains (.getMessage e) "Stream closed")))
+              (.printStackTrace e *err*))))
+        (recur buf)))))
+
+(defn run-command!
+  "Runs a shell command using ProcessBuilder and returns a tuple
+   [output err-output exit-code], where output and err-output are
+   the standard and error output of the command (as strings) and
+   exit-code is the exit code of the command.
+
+   Takes args and opts, which may contain the following options:
+
+     :pwd - the working directory as a java.io.File"
+  [args {:keys [pwd] :as opts}]
+  (let [builder (cond-> (ProcessBuilder. args)
+                  (:pwd opts) (.directory (:pwd opts)))
+        proc    (.start builder)
+        is      (.getInputStream proc)
+        iw      (StringWriter. (* 16 1024 1024))
+        es      (.getErrorStream proc)
+        ew      (StringWriter. (* 1024 1024))
+        _       (do (.start
+                     (Thread.
+                      (bound-fn [] (pipe proc is iw))))
+                    (.start
+                     (Thread.
+                      (bound-fn [] (pipe proc es ew)))))
+        code    (.waitFor proc)]
+    [(str iw) (str ew) code]))

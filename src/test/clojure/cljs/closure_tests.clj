@@ -442,3 +442,31 @@
     (.delete (io/file "package.json"))
     (test/delete-node-modules)
     (test/delete-out-files out)))
+
+(deftest test-cljs-2622
+  ;; Prepare example package tarball
+  (let [test-dir (io/file "src" "test" "cljs_build" "npm_deps_tarball_test")
+        pkg-sources (io/file test-dir "example-package-sources")
+        pkg-tarball (io/file "example-package-0.1.0.tgz")
+        [_ _ exit-code] (test/run-command! ["npm" "pack" (str pkg-sources)] {})]
+    ;; Verify that the tarball was created
+    (is (zero? exit-code) "Failed to create example package tarball")
+    (is (.exists pkg-tarball) "Example package tarball not created")
+    ;; Run the actual test
+    (spit (io/file "package.json") "{}")
+    (let [opts {:npm-deps {(str pkg-tarball) "0.1.0"}}
+          out (util/output-directory opts)]
+      (test/delete-node-modules)
+      (test/delete-out-files out)
+      (closure/maybe-install-node-deps! opts)
+      (is (true? (some (fn [module]
+                         (= module {:module-type :es6
+                                    :file (.getAbsolutePath (io/file "node_modules/example-package/index.js"))
+                                    :provides ["example-package"
+                                               "example-package/index.js"
+                                               "example-package/index"]}))
+                       (closure/index-node-modules ["example-package"] opts))))
+      (test/delete-node-modules)
+      (test/delete-out-files out))
+    (.delete (io/file "package.json"))
+    (.delete pkg-tarball)))

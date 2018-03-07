@@ -2294,7 +2294,14 @@
         (let [proc (-> (ProcessBuilder.
                          (into (cond->> ["npm" "install" "@cljs-oss/module-deps"]
                                  util/windows? (into ["cmd" "/c"]))
-                           (map (fn [[dep version]] (str (name dep) "@" version)))
+                           (map (fn [[dep version]]
+                                  ;; If the npm dep is the path of a file that exists, then
+                                  ;; we assume it is an NPM package tarball and that we can
+                                  ;; simply install it using its path - Jannis
+                                  (if (and (string? dep)
+                                           (.exists (io/file dep)))
+                                    dep
+                                    (str (name dep) "@" version))))
                            npm-deps))
                      .start)
               is   (.getInputStream proc)
