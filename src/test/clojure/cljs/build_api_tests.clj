@@ -634,7 +634,7 @@
               :optimizations :none
               :install-deps true
               :npm-deps {:iterall "1.2.2"
-                         :graphql "0.13.1"}
+                         "/Users/jannis/Work/oss/graphql/graphql-js/dist/graphql-0.13.1.tgz" "0.13.1"}
               :closure-warnings {:check-types :off
                                  :non-standard-jsdoc :off}}]
     (test/delete-out-files out)
