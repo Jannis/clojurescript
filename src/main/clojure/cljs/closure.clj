@@ -1774,6 +1774,10 @@
   Closure-compatible form. Returns list IJavaScript with the converted module
   code set as source."
   [js-modules opts]
+  (println "convert-js-modules: js-modules")
+  (clojure.pprint/pprint js-modules)
+  (println "convert-js-modules: opts")
+  (clojure.pprint/pprint opts)
   (let [^List externs '()
         ^List source-files (get-source-files js-modules opts)
         ^CompilerOptions options (doto (make-convert-js-module-options opts)
@@ -2329,6 +2333,7 @@
      (when env/*compiler*
        (:options @env/*compiler*))))
   ([{:keys [file]} {:keys [target] :as opts}]
+   (println "node-module-deps: file =" file)
    (let [code (-> (slurp (io/resource "cljs/module_deps.js"))
                 (string/replace "JS_FILE" (string/replace file "\\" "\\\\"))
                 (string/replace "CLJS_TARGET" (str "" (when target (name target)))))
@@ -2381,6 +2386,8 @@
      (when env/*compiler*
        (:options @env/*compiler*))))
   ([modules opts]
+   (println "index-node-modules: modules")
+   (clojure.pprint/pprint modules)
    (let [node-modules (io/file "node_modules")]
      (if (and (not (empty? modules)) (.exists node-modules) (.isDirectory node-modules))
        (let [modules (into #{} (map name) modules)
@@ -2397,6 +2404,8 @@
            (do
              (spit deps-file new-contents)
              (let [transitive-js (node-inputs [{:file (.getAbsolutePath deps-file)}] opts)]
+               (println "index-node-modules: transitive-js")
+               (clojure.pprint/pprint transitive-js)
                (when-not (nil? env/*compiler*)
                  (swap! env/*compiler* update-in [::transitive-dep-set]
                    assoc modules transitive-js))
@@ -2638,6 +2647,8 @@
                     ;; if :npm-deps option is false, node_modules/ dir shouldn't be indexed
                     (if (not (false? npm-deps))
                       (index-node-modules-dir)))
+        _ (println "handle-js-modules: top-level")
+        _ (clojure.pprint/pprint top-level)
         requires (set (mapcat deps/-requires js-sources))
         ;; Select Node files that are required by Cljs code,
         ;; and create list of all their dependencies
@@ -2653,6 +2664,8 @@
                      (node-inputs (filter (fn [{:keys [module-type]}]
                                             (some? module-type))
                                     expanded-libs))))))
+        _ (println "handle-js-modules: opts (after indexing)")
+        _ (clojure.pprint/pprint opts)
         ;; If compiler-env doesn't contain JS module info we need to process
         ;; modules even if files haven't changed since last compile.
         opts (if (or (nil? (:js-namespaces @compiler-env))
@@ -2772,10 +2785,16 @@
                  _ (load-data-readers! compiler-env)
                  ;; reset :js-module-index so that ana/parse-ns called by -find-sources
                  ;; can find the missing JS modules
+                 _ (println "build: -find-sources")
                  js-sources (env/with-compiler-env (dissoc @compiler-env :js-module-index)
                               (-> (-find-sources source opts)
+                                  (-> (doto (clojure.pprint/pprint)))
                                   (add-dependency-sources compile-opts)))
+                 _ (println "build: js-sources (before handling JS modules)")
+                 _ (clojure.pprint/pprint js-sources)
                  opts       (handle-js-modules opts js-sources compiler-env)
+                 _ (println "build: opts (after handling JS modules)")
+                 _ (clojure.pprint/pprint opts)
                  _ (swap! env/*compiler* update-in [:options] merge opts)
                  js-sources (-> js-sources
                                 deps/dependency-order
