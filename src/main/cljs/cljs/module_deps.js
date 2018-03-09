@@ -59,7 +59,11 @@ let getDeps = function (src, {dynamicImport = true, parse = {sourceType: 'module
     return modules;
 };
 
-class ES6ModuleRejectionPlugin {
+// This plugin catches JS modules that are resolved to files ending
+// with .mjs and tries to translate to a .js file with the same path.
+// This is because .mjs files are currently experimental and Google
+// Closure Compiler does not support them.
+class ES6ModuleJSFallbackPlugin {
 	constructor(source, target) {
 		this.source = source;
 		this.target = target;
